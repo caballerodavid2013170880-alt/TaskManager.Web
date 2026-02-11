@@ -11,6 +11,8 @@
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 5;
 
+        public int? CategoryId { get; set; } // 4feb
+
         // Resultados devueltos por la API
         public PagedResultViewModel<TaskViewModel>? Result { get; set; }
     }

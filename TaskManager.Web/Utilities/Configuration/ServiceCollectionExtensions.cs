@@ -9,6 +9,7 @@ namespace TaskManager.Web.Extensions
             services.AddHttpClient<ITaskApiClient, TaskApiClient>();
             services.AddHttpClient<ICategoryApiClient, CategoryApiClient>();
 
+
             return services;
         }
     }

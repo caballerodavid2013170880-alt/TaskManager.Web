@@ -59,13 +59,15 @@ namespace TaskManager.Web.Controllers
 
             return RedirectToAction(nameof(Index));
         }
-
+        //Se comenta versión original por modificación sin ID
+        /*
         [HttpGet] 
         public async Task<IActionResult> Edit(int id)
         {
             var model = await _client.GetTaskByIdAsync(id);
             return View(model);
         }
+        */
         [HttpPost] 
         public async Task<IActionResult> Edit(EditTaskViewModel model)
         {
@@ -100,5 +102,104 @@ namespace TaskManager.Web.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+        //Se comenta versión original por modificación sin ID
+        /*
+        //300126 Details
+        [HttpGet]
+        public async Task<IActionResult> Details(int id)
+        {
+            var task = await _client.GetTaskDetailAsync(id);
+
+            if (task == null)
+            {
+                TempData["Error"] = "La tarea no existe.";
+                return RedirectToAction("Index");
+            }
+
+            return View(task);
+        }
+        */
+        //Versiones con mensaje UX por falta de ID
+        public async Task<IActionResult> Details(int? id)
+        {
+            if (id == null || id == 0)
+            {
+                TempData["Error"] = "Por favor indica el registro que quieres ver detalles.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var task = await _client.GetTaskDetailAsync(id.Value);
+            if (task == null) return NotFound();
+
+            return View(task);
+        }
+
+        public async Task<IActionResult> Edit(int? id)
+        {
+            if (id == null || id == 0)
+            {
+                TempData["Error"] = "Por favor indica el registro que quieres editar.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var task = await _client.GetTaskByIdAsync(id.Value);
+            if (task == null) return NotFound();
+
+            return View(task);
+        }
+
+
+        //060326 Import Excel tareas
+        [HttpGet]
+        public IActionResult Import()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Import(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                TempData["Error"] = "Debe seleccionar un archivo Excel.";
+                return View();
+            }
+
+            try
+            {
+                var resultMessage = await _client.ImportTasksFromExcelAsync(file);
+                TempData["Success"] = resultMessage;
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "Ocurrió un error al importar el archivo: " + ex.Message;
+            }
+
+            return View();
+        }
+
+
+        //060326 FIN Import Excel tareas
+
+
+        
+        // 040226
+        [HttpGet]
+        public async Task<IActionResult> Index2(TaskSearchViewModel filters)
+        {
+            var result = await _client.AdvancedSearchAsync(filters);
+            filters.Result = result;
+            return View(filters); // regresamos siempre el modelo completo
+        }
+        
+
+
+        //050226 Ajax
+        [HttpGet]
+        public IActionResult AjaxDemo()
+        {
+            return View();
+        }
+
     }
 }
