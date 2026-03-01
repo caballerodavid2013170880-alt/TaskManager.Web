@@ -1,6 +1,28 @@
 using TaskManager.Web.Extensions;
+using TaskManager.Web.Interfaces.Category;
+using TaskManager.Web.Interfaces.Task;
+using TaskManager.Web.Services.Categories;
+using TaskManager.Web.Services.Tasks;
 
 var builder = WebApplication.CreateBuilder(args);
+// CONFIGURACIÓN DE SERVICIOS (Service Layer Única)
+
+// 1. Configurar HttpClient para TaskService
+builder.Services.AddHttpClient<ITaskService, TaskService>(client =>
+{
+    // AJUSTA ESTO AL PUERTO REAL DE TU API (Backend)
+    client.BaseAddress = new Uri("http://localhost:7125/");
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
+// 2. Repite el patrón para Categorías (cuando hagas la migración de ese también)
+builder.Services.AddHttpClient<ICategoryService, CategoryService>(client =>
+{
+    // AJUSTA ESTO AL PUERTO REAL DE TU API (Backend)
+    client.BaseAddress = new Uri("http://localhost:7125/");
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
