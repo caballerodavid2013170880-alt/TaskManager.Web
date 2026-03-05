@@ -64,6 +64,7 @@ namespace TaskManager.Web.Services
             response.EnsureSuccessStatusCode(); //Lanza Exception si no es exitosa
             return true;
         }
+        
         //270126
         //GET
         public async Task<EditTaskViewModel> GetTaskByIdAsync(int id)
@@ -81,6 +82,24 @@ namespace TaskManager.Web.Services
                 IsCompleted = response.IsCompleted
             };
         }
+
+        /*180226
+        public async Task<EditTaskViewModel> GetTaskById2Async(int id)
+        {
+            var response = await _httpClient.GetFromJsonAsync<TaskViewModel>($"/api/tasks/{id}");
+
+            if (response == null) throw new Exception("No se encontró la tarea");
+
+            return new EditTaskViewModel
+            {
+                Id = response.Id,
+                Title = response.Title,
+                CategoryId = response.CategoryId,
+                Step = response.Step,
+                IsCompleted = response.IsCompleted
+            };
+        }
+        */
         //270126
         //POST
         public async Task UpdateTaskAsync(EditTaskViewModel model)
@@ -217,6 +236,5 @@ namespace TaskManager.Web.Services
                        TotalCount = 0
                    };
         }
-
     }
 }

@@ -1,189 +1,248 @@
-﻿<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.2/dist/lux/bootstrap.min.css" rel="stylesheet">  
-@model TaskManager.Web.Models.TaskSearchViewModel
+﻿@model TaskManager.Web.Models.TaskSearchViewModel
 
 @{
-    ViewData["Title"] = "Tareas";
+    ViewData["Title"] = "Gestión de Tareas";
 }
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success">@TempData["Success"]</div>
-}
-
-@if (TempData["Error"] != null)
-{
-    <div class="alert alert-danger">@TempData["Error"]</div>
-}
-
-<!-- <partial name="_AlertMessages" /> //Duplicación de alerta -->
-
-
-<h1>Tareas</h1>
-
-@if (Model?.Result?.Items != null)
-{
-    <p>Mostrando @Model.Result.Items.Count() de @Model.Result.TotalCount</p>  }
-
-<div class="container mt-4">
-    <form asp-action="Index" method="get" class="mb-4">
-        <div class="row">
-            <div class="col-3">
-                <label>Texto</label>
-                <input type="text" class="form-control" name="Text" value="@Model?.Text" />
-            </div>
-
-            <div class="col-3">
-                <label>Categoría</label>
-                <input type="text" class="form-control" name="CategoryName" value="@Model?.CategoryName" />
-            </div>
-
-            <div class="col-2">
-                <label>Completado</label>
-                <select name="IsCompleted" class="form-control">
-                    <option value="">--Todos--</option>
-                    <option value="true" selected="@(Model?.IsCompleted == true ? "selected" : null)">Sí</option>
-                    <option value="false" selected="@(Model?.IsCompleted == false ? "selected" : null)">No</option>
-                </select>
-            </div>
-
-            <div class="col-2">
-                <label>Step</label>
-                <input type="number" class="form-control" name="Step" value="@Model?.Step" />
-            </div>
-
-            <div class="col-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">Buscar</button>
-            </div>
-        </div>
-    </form>
-</div> @if (Model?.Result?.Items == null || !Model.Result.Items.Any())
-{
-    <p>No se encontraron resultados.</p>
-}
-else
-{
-    <p>Mostrando @Model.Result.Items.Count() de @Model.Result.TotalCount resultados.</p>
-
-    <div class="table-responsive">
-        <table class="table table-striped table-hover">
-            <thead>
-                <tr>
-                    <th>Título</th>
-                    <th>Categoría</th>
-                    <th>Completado</th>
-                    <th>Step</th>
-                    <th>Fecha</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var t in Model.Result.Items)
-                {
-                    <tr>
-                        <td>@t.Title</td>
-                        <td>@t.CategoryName</td>
-                        <td>@(t.IsCompleted ? "Sí" : "No")</td>
-                        <td>@t.Step</td>
-                        <td>@t.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
-                        <td>
-                            <a asp-controller="Tasks" asp-action="Details" asp-route-id="@t.Id">
-                                Ver detalles
-                            </a>
-
-                            <a asp-action="Edit" asp-route-id="@t.Id" class="btn btn-sm btn-primary">Editar</a>
-
-                            @if (t.IsCompleted)
-                            {
-                                <button class="btn btn-secondary btn-sm" disabled>Eliminar</button>
-                            }
-                            else
-                            {
-                                <form asp-action="Delete" method="post" class="d-inline">
-                                    <input type="hidden" name="id" value="@t.Id" />
-                                    <button type="submit" class="btn btn-danger btn-sm"
-                                            onclick="return confirm('¿Eliminar?');">
-                                        Eliminar
-                                    </button>
-                                </form>
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+@* CSS Dinámico: Ajuste automático según la resolución del navegador para evitar scroll vertical *@
+<style>
+    /* Contenedor principal adaptable a la altura del viewport (ventana) */
+    .compact-layout-container {
+        display: flex;
+        flex-direction: column;
+        max-height: 88vh; /* Limita el contenido al 88% del alto de pantalla */
+        gap: 0.5rem;
     }
 
-@{
-    var totalCount = Model?.Result?.TotalCount ?? 0;
-    var pageSize = Model?.PageSize ?? 10;
-    var currentPage = Model?.Page ?? 1;
-    var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+    /* Optimización de celdas para el estilo Lux: reduce interlineado y rellenos */
+    .table-custom-compact tbody td,
+    .table-custom-compact thead th {
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.3rem !important;
+        line-height: 1.1;
+        vertical-align: middle;
+    }
 
-    // Lógica para limitar a 10 páginas visibles (ventana actual)
-    int maxVisiblePages = 10;
-    int startPage = Math.Max(1, currentPage - (maxVisiblePages / 2));
-    int endPage = Math.Min(totalPages, startPage + maxVisiblePages - 1);
+    /* Scroll interno para la tabla: permite que solo los datos se desplacen si la pantalla es muy pequeña */
+    .table-responsive-dynamic {
+        overflow-y: auto;
+        flex-grow: 1;
+        border: 1px solid #dee2e6;
+        background: white;
+    }
 
-    if (endPage - startPage + 1 < maxVisiblePages)
+    /* Estilo para que la cabecera de la tabla no se mueva al hacer scroll interno */
+    .sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+</style>
+
+<div class="compact-layout-container">
+
+    @* Bloque de alertas (Optimizado para una sola línea) *@
+    @if (TempData["Success"] != null)
     {
-        startPage = Math.Max(1, endPage - maxVisiblePages + 1);
+        <div class="alert alert-success py-1 mb-1 small">@TempData["Success"]</div>
     }
 
-    // Lógica para saltos de decenas
-    int currentDecade = (int)(Math.Floor((double)(currentPage - 1) / 10) * 10);
-}
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger py-1 mb-1 small">@TempData["Error"]</div>
+    }
 
-@if (totalPages > 1)
-{
-    <nav aria-label="Navegación de tareas" class="d-flex justify-content-center mt-4">
-        <ul class="pagination flex-wrap shadow-sm">
+    @* Integración de V2: Carga de alertas por parcial si existe *@
+    <partial name="_AlertMessages" />
 
-            @for (int d = 30; d >= 10; d -= 10)
-            {
-                int targetDecade = currentDecade - (d - 10);
-                // Ajuste para que muestre la decena anterior exacta
-                if (targetDecade < currentDecade && targetDecade >= 1)
+    @* Cabecera principal con botón de creación rápida (Integración de V1) *@
+    <div class="d-flex justify-content-between align-items-center mb-1">
+        <h1 class="h5 mb-0 fw-bold">TAREAS</h1>
+        <a href="/Tasks/Create" class="btn btn-success btn-sm py-1 shadow-sm px-3" style="font-size: 0.75rem; height: 32px; display: flex; align-items: center;">
+            <i class="bi bi-plus-lg me-1"></i> NUEVA TAREA
+        </a>
+    </div>
+
+    @* Bloque de Filtros (Card de V1 con inputs de V2 para ID de categoría) *@
+    <div class="card border-0 mb-1 shadow-sm">
+        <div class="card-body bg-light rounded p-2">
+            <form asp-action="Index" method="get" class="row g-1 align-items-end">
+                <div class="col-md-3">
+                    <label class="small fw-bold mb-0" style="font-size: 0.65rem;">TEXTO</label>
+                    <input type="text" class="form-control form-control-sm" name="Text" value="@Model?.Text" />
+                </div>
+                <div class="col-md-1">
+                    <label class="small fw-bold mb-0" style="font-size: 0.65rem;">ID CAT</label>
+                    <input type="number" class="form-control form-control-sm" name="CategoryId" value="@Model?.CategoryId" />
+                </div>
+                <div class="col-md-3">
+                    <label class="small fw-bold mb-0" style="font-size: 0.65rem;">CATEGORÍA</label>
+                    <input type="text" class="form-control form-control-sm" name="CategoryName" value="@Model?.CategoryName" />
+                </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold mb-0" style="font-size: 0.65rem;">ESTADO</label>
+                    <select name="IsCompleted" class="form-select form-select-sm">
+                        <option value="">TODOS</option>
+                        <option value="true" selected="@(Model?.IsCompleted == true ? "selected" : null)">SÍ</option>
+                        <option value="false" selected="@(Model?.IsCompleted == false ? "selected" : null)">NO</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="small fw-bold mb-0" style="font-size: 0.65rem;">STEP</label>
+                    <input type="number" class="form-control form-control-sm" name="Step" value="@Model?.Step" />
+                </div>
+                <div class="col-md-2 d-flex gap-1">
+                    @* Botón de búsqueda y botón de limpieza de V2 *@
+                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1" style="height: 31px;">
+                        <i class="bi bi-search"></i>
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary btn-sm" style="width: 31px; height: 31px;" title="Limpiar">
+                        <i class="bi bi-eraser"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (Model?.Result?.Items == null || !Model.Result.Items.Any())
+    {
+        <div class="alert alert-info text-center py-1 mb-0 small">No se encontraron resultados.</div>
+    }
+    else
+    {
+        @* Listado de Tareas: Tabla compacta con Badges de V1 y Lógica de borrado de Index.cshtml *@
+        <div class="table-responsive-dynamic rounded shadow-sm">
+            <table class="table table-sm table-hover table-custom-compact align-middle mb-0" style="font-size: 0.8rem;">
+                <thead class="table-dark sticky-header">
+                    <tr>
+                        <th style="width: 30%;">TÍTULO</th>
+                        <th style="width: 15%;">CATEGORÍA</th>
+                        <th style="width: 10%;" class="text-center">ESTADO</th>
+                        <th style="width: 10%;" class="text-center">ST</th>
+                        <th style="width: 10%;" class="d-none d-lg-table-cell">FECHA</th>
+                        <th style="width: 25%;" class="text-center">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model.Result.Items)
+                    {
+                        <tr>
+                            <td class="fw-bold text-truncate" style="max-width: 150px;">@t.Title</td>
+                            <td><span class="badge bg-info text-dark py-1 w-100" style="font-size: 0.65rem;">@t.CategoryName</span></td>
+                            <td class="text-center">
+                                <span class="badge @(t.IsCompleted ? "bg-success" : "bg-warning text-dark") py-1 w-100" style="font-size: 0.65rem;">
+                                    @(t.IsCompleted ? "SÍ" : "NO")
+                                </span>
+                            </td>
+                            <td class="text-center fw-bold">@t.Step</td>
+                            <td class="small text-muted d-none d-lg-table-cell">@t.CreatedAt.ToString("dd/MM/yy")</td>
+                            <td>
+                                <div class="d-flex justify-content-center gap-1">
+                                    @* Acciones con iconos distinguibles pero de tamaño unificado para responsividad *@
+                                    <a asp-controller="Tasks" asp-action="Details" asp-route-id="@t.Id" class="btn btn-info btn-sm p-0 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;" title="Detalles">
+                                        <i class="bi bi-eye-fill"></i>
+                                    </a>
+                                    <a asp-action="Edit" asp-route-id="@t.Id" class="btn btn-warning btn-sm p-0 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;" title="Editar">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+
+                                    @* Lógica original de Index.cshtml: No permite eliminar tareas completadas *@
+                                    @if (t.IsCompleted)
+                                    {
+                                        <button class="btn btn-secondary btn-sm p-0 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;" disabled title="No eliminable">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <form asp-action="Delete" method="post" class="d-inline m-0">
+                                            <input type="hidden" name="id" value="@t.Id" />
+                                            <button type="submit" class="btn btn-danger btn-sm p-0 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;" onclick="return confirm('¿Eliminar?');">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @* LÓGICA DE PAGINACIÓN ORIGINAL (CONSERVADA INTACTA) *@
+    @{
+        var totalCount = Model?.Result?.TotalCount ?? 0;
+        var pageSize = Model?.PageSize ?? 10;
+        var currentPage = Model?.Page ?? 1;
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+        @* Lógica para limitar a 5 páginas visibles para mejorar responsividad en resoluciones bajas *@
+        int maxVisiblePages = 10;
+        int startPage = Math.Max(1, currentPage - (maxVisiblePages / 2));
+        int endPage = Math.Min(totalPages, startPage + maxVisiblePages - 1);
+
+        if (endPage - startPage + 1 < maxVisiblePages)
+        {
+            startPage = Math.Max(1, endPage - maxVisiblePages + 1);
+        }
+
+        @* Lógica para saltos de decenas *@
+        int currentDecade = (int)(Math.Floor((double)(currentPage - 1) / 10) * 10);
+    }
+
+    @if (totalPages > 1)
+    {
+        @* Navegación compacta al pie (Página y total de registros) *@
+        <nav aria-label="Navegación" class="mt-auto pt-2 bg-white">
+            <ul class="pagination pagination-sm justify-content-center mb-1">
+
+                @* Lógica para saltos de decenas (Original de Index.cshtml) *@
+                @for (int d = 30; d >= 10; d -= 10)
                 {
-                    <li class="page-item d-none d-md-block">
-                        <a class="page-link bg-light text-muted" asp-action="Index" asp-route-page="@targetDecade" asp-route-pageSize="@pageSize">@targetDecade</a>
-                    </li>
+                    int targetDecade = currentDecade - (d - 10);
+                    if (targetDecade < currentDecade && targetDecade >= 1)
+                    {
+                        <li class="page-item d-none d-md-block">
+                            <a class="page-link py-1 bg-light text-muted" asp-action="Index" asp-route-page="@targetDecade" asp-route-pageSize="@pageSize">@targetDecade</a>
+                        </li>
+                    }
                 }
-            }
 
-            <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
-                <a class="page-link" asp-action="Index" asp-route-page="@(currentPage - 1)" asp-route-pageSize="@pageSize">
-                    <i class="bi bi-chevron-left"></i> Anterior
-                </a>
-            </li>
-
-            @for (int i = startPage; i <= endPage; i++)
-            {
-                <li class="page-item @(i == currentPage ? "active" : "")">
-                    <a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-pageSize="@pageSize">@i</a>
+                <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
+                    <a class="page-link py-1" asp-action="Index" asp-route-page="@(currentPage - 1)" asp-route-pageSize="@pageSize">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
                 </li>
-            }
 
-            <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
-                <a class="page-link" asp-action="Index" asp-route-page="@(currentPage + 1)" asp-route-pageSize="@pageSize">
-                    Siguiente <i class="bi bi-chevron-right"></i>
-                </a>
-            </li>
-
-            @for (int d = 10; d <= 30; d += 10)
-            {
-                int nextBaseDecade = ((int)Math.Floor((double)(currentPage - 1) / 10) * 10) + 10 + d;
-
-                if (nextBaseDecade <= totalPages)
+                @for (int i = startPage; i <= endPage; i++)
                 {
-                    <li class="page-item d-none d-md-block">
-                        <a class="page-link bg-light text-muted" asp-action="Index" asp-route-page="@nextBaseDecade" asp-route-pageSize="@pageSize">@nextBaseDecade</a>
+                    <li class="page-item @(i == currentPage ? "active" : "")">
+                        <a class="page-link py-1" asp-action="Index" asp-route-page="@i" asp-route-pageSize="@pageSize">@i</a>
                     </li>
                 }
-            }
-        </ul>
-    </nav>
-}
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script> ```
+                <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
+                    <a class="page-link py-1" asp-action="Index" asp-route-page="@(currentPage + 1)" asp-route-pageSize="@pageSize">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+
+                @for (int d = 10; d <= 30; d += 10)
+                {
+                    int nextBaseDecade = ((int)Math.Floor((double)(currentPage - 1) / 10) * 10) + 10 + d;
+                    if (nextBaseDecade <= totalPages)
+                    {
+                        <li class="page-item d-none d-md-block">
+                            <a class="page-link py-1 bg-light text-muted" asp-action="Index" asp-route-page="@nextBaseDecade" asp-route-pageSize="@pageSize">@nextBaseDecade</a>
+                        </li>
+                    }
+                }
+            </ul>
+            <div class="text-center" style="font-size: 0.65rem;">
+                <span class="text-muted text-uppercase">Total: @totalCount Registros</span>
+            </div>
+        </nav>
+    }
+</div>

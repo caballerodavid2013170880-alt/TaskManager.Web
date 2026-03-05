@@ -40,6 +40,8 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+// Aquí va el middleware MVC de errores
+app.UseMvcGlobalErrorHandler();
 
 app.UseAuthorization();
 

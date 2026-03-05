@@ -3,165 +3,117 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using TaskManager.Web.Interfaces.Category; // Necesario para cargar las categorías en los select
 using TaskManager.Web.Interfaces.Task;     // Nuestra nueva interfaz unificada
 using TaskManager.Web.Models;
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 using TaskManager.Web.Services;
 =======
 >>>>>>> Stashed changes
+=======
+using TaskManager.Web.Services.Business;
+using TaskManager.Web.Utilities.Exceptions; // Referencia a la nueva capa
+>>>>>>> tras-status-quo
 
 namespace TaskManager.Web.Controllers
 {
     public class TasksController : Controller
     {
+<<<<<<< HEAD
 <<<<<<< Updated upstream
         private readonly ITaskApiClient _client;
+=======
+        private readonly ITaskService _taskService;
+>>>>>>> tras-status-quo
 
-        public TasksController(ITaskApiClient client)
+        public TasksController(ITaskService taskService)
         {
-            _client = client;
+            _taskService = taskService;
         }
-        /*
-        public async Task<IActionResult> Index(int page = 1, int pageSize = 10)
-        {
-            var result = await _client.GetTasksAsync(page, pageSize); //Retorna vista
-            return View(result);    //En la vista retorna el resultado
-        }*/
-        //Arreglo DCC improvisado 230126
-        public async Task<IActionResult> Index(int page = 1, int pageSize = 10)
-        {
-            var model = new TaskSearchViewModel
-            {
-                Page = page,
-                PageSize = pageSize,
-                Result = await _client.GetTasksAsync(page, pageSize)
-            };
 
+        // Arreglo DCC improvisado 230126
+        public async Task<IActionResult> Index(int page = 1, int pageSize = 10)
+        {
+            var model = await _taskService.GetIndexModelAsync(page, pageSize);
             return View(model);
         }
-
 
         public async Task<IActionResult> Search(TaskSearchViewModel model)
         {
-            // Si es la primera carga de la página
-            if (model.Page == 0)
-                model.Page = 1;
-
-            model.Result = await _client.SearchTasksAsync(model);
-
-            return View("Index", model);
+            var resultModel = await _taskService.SearchTasksAsync(model);
+            return View("Index1", resultModel);
         }
 
         [HttpGet]
-        public IActionResult Create()
-        {
-            return View(new CreateTaskViewModel());
-        }
+        public IActionResult Create() => View(new CreateTaskViewModel());
 
         [HttpPost]
-        public async Task<IActionResult> Create(CreateTaskViewModel model)
+        public async Task<IActionResult> Create([FromBody]CreateTaskViewModel model)
         {
-            if (!ModelState.IsValid)
-                return View(model);
-
-            await _client.CreateTaskAsync(model);
-
+            if (!ModelState.IsValid) return View(model);
+            await _taskService.CreateTaskAsync(model);
             return RedirectToAction(nameof(Index));
         }
-        //Se comenta versión original por modificación sin ID
-        /*
-        [HttpGet] 
-        public async Task<IActionResult> Edit(int id)
-        {
-            var model = await _client.GetTaskByIdAsync(id);
-            return View(model);
-        }
-        */
-        [HttpPost] 
-        public async Task<IActionResult> Edit(EditTaskViewModel model)
+        //Modificaciones para modal Editar 190226
+        [HttpPost]
+        // El [FromBody] es OBLIGATORIO si fetch envía application/json
+        public async Task<IActionResult> Edit([FromBody] EditTaskViewModel model)
         {
             if (!ModelState.IsValid)
-                return View(model);
+                return BadRequest(ModelState); // Para que el AJAX sepa que hubo un error
 
             try
             {
-                await _client.UpdateTaskAsync(model);
-                TempData["Success"] = "La tarea fue actualizada correctamente.";
-                return RedirectToAction(nameof(Index));
+                await _taskService.UpdateTaskAsync(model);
+                return Ok(); // Responde OK(200) para que el JavaScript cierre el modal y actualice la tabla
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError("", "Ocurrió un error: " + ex.Message);
-                return View(model);
+                return BadRequest("Ocurrió un error: " + ex.Message);
             }
         }
 
-        [HttpPost] 
+        [HttpPost]
         public async Task<IActionResult> Delete(int id)
-        {
+        {//Borramo try catch por modificaciones en el MIddleware, permitiendo capturar excepciones 130226
             try
             {
-                await _client.DeleteTaskAsync(id);
+                await _taskService.DeleteTaskAsync(id);
                 TempData["Success"] = "La tarea fue eliminada correctamente.";
             }
             catch (Exception ex)
             {
                 TempData["Error"] = "No se pudo eliminar la tarea: " + ex.Message;
             }
-
             return RedirectToAction(nameof(Index));
         }
-        //Se comenta versión original por modificación sin ID
-        /*
-        //300126 Details
-        [HttpGet]
-        public async Task<IActionResult> Details(int id)
-        {
-            var task = await _client.GetTaskDetailAsync(id);
 
-            if (task == null)
-            {
-                TempData["Error"] = "La tarea no existe.";
-                return RedirectToAction("Index");
-            }
-
-            return View(task);
-        }
-        */
-        //Versiones con mensaje UX por falta de ID
+        // Versiones con mensaje UX por falta de ID
         public async Task<IActionResult> Details(int? id)
         {
-            if (id == null || id == 0)
+            var task = await _taskService.GetDetailsAsync(id);
+            if (task == null)
             {
-                TempData["Error"] = "Por favor indica el registro que quieres ver detalles.";
+                TempData["Error"] = (id == null || id == 0)
+                    ? "Por favor indica el registro que quieres ver detalles."
+                    : "La tarea no existe.";
                 return RedirectToAction(nameof(Index));
             }
-
-            var task = await _client.GetTaskDetailAsync(id.Value);
-            if (task == null) return NotFound();
-
             return View(task);
         }
-
+        //Edit con alert
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null || id == 0)
+            var task = await _taskService.GetTaskForEditAsync(id);
+            if (task == null)
             {
                 TempData["Error"] = "Por favor indica el registro que quieres editar.";
                 return RedirectToAction(nameof(Index));
             }
-
-            var task = await _client.GetTaskByIdAsync(id.Value);
-            if (task == null) return NotFound();
-
             return View(task);
         }
 
-
-        //060326 Import Excel tareas
+        // 060326 Import Excel tareas
         [HttpGet]
-        public IActionResult Import()
-        {
-            return View();
-        }
+        public IActionResult Import() => View();
 
         [HttpPost]
         public async Task<IActionResult> Import(IFormFile file)
@@ -171,43 +123,103 @@ namespace TaskManager.Web.Controllers
                 TempData["Error"] = "Debe seleccionar un archivo Excel.";
                 return View();
             }
-
             try
             {
-                var resultMessage = await _client.ImportTasksFromExcelAsync(file);
-                TempData["Success"] = resultMessage;
+                TempData["Success"] = await _taskService.ImportFromExcelAsync(file);
             }
             catch (Exception ex)
             {
                 TempData["Error"] = "Ocurrió un error al importar el archivo: " + ex.Message;
             }
-
             return View();
         }
 
-
-        //060326 FIN Import Excel tareas
-
-
-        
-        // 040226
+        // 040226 Advanced Search
         [HttpGet]
         public async Task<IActionResult> Index2(TaskSearchViewModel filters)
         {
-            var result = await _client.AdvancedSearchAsync(filters);
-            filters.Result = result;
-            return View(filters); // regresamos siempre el modelo completo
+            var model = await _taskService.GetAdvancedSearchModelAsync(filters);
+            return View(model);
         }
-        
 
-
-        //050226 Ajax
+        // 050226 Ajax
         [HttpGet]
-        public IActionResult AjaxDemo()
+        public IActionResult AjaxDemo() => View();
+
+        //120226 Partial Views GAdaptacion
+        [HttpGet]
+        public async Task<IActionResult> LoadTablePartial(TaskSearchViewModel filters)
         {
-            return View();
+            // Cambia _client por _taskService y usa el método correspondiente
+            var resultModel = await _taskService.AdvancedSearchAsync(filters);
+
+            // Como AdvancedSearchAsync devuelve el ViewModel completo, 
+            // pasamos la lista de items que está dentro de .Result
+            return PartialView("_TaskTablePartial", resultModel.Result?.Items);
+        }
+        /*
+        //180226
+        //Para abrir el modal de CREAR TAREA
+        [HttpGet]
+        public IActionResult CreatePartial()
+        {
+            // El TRUCO: Pasar un EditTaskViewModel con Id = 0 para que la vista no colapse al buscar el Model.Id
+            return PartialView("_TaskFormPartial2", new EditTaskViewModel { Id = 0 });
+        }
+        //190226
+        // Para abrir el modal de EDITAR
+        [HttpGet]
+        public async Task<IActionResult> EditPartial(int id)
+        {
+            var task = await _taskService.GetTaskByIdAsync(id);
+            if (task == null) return NotFound();
+
+            return PartialView("_TaskFormPartial2", task);
+        }
+        */
+
+        //250226
+        //Reemplazo Partials
+        [HttpGet]
+        public IActionResult CreatePartial()
+        {
+            var model = new TaskFormViewModel
+            {
+                Id = 0,              // crear
+                Title = string.Empty,
+                CategoryId = 0,
+                Step = 1,
+                IsCompleted = false
+            };
+
+            return PartialView("_TaskFormPartial2", model); //Uso de vista parcial 2 para los metodos Crear y Editar reemplazados
+        }
+        //250226
+        //Reemplazo Partials
+        [HttpGet]
+        public async Task<IActionResult> EditPartial(int id)
+        {
+            var task = await _taskService.GetTaskByIdAsync(id);
+
+            if (task == null)
+            {
+                // puedes decidir qué hacer aquí (redirigir, mensaje, etc.)
+                return NotFound();
+            }
+
+            var model = new TaskFormViewModel
+            {
+                Id = task.Id,
+                Title = task.Title,
+                CategoryId = task.CategoryId,
+                Step = task.Step,
+                IsCompleted = task.IsCompleted
+            };
+
+            return PartialView("_TaskFormPartial2", model); //Uso de vista parcial 2 para los metodos Crear y Editar reemplazados 
         }
 
+<<<<<<< HEAD
 =======
         // 🏗️ ARQUITECTURA: Inyección de Dependencias
         // Aquí pedimos las herramientas que necesitamos.
@@ -412,5 +424,22 @@ namespace TaskManager.Web.Controllers
             ViewBag.Categories = new SelectList(categories, "Id", "Name");
         }
 >>>>>>> Stashed changes
+=======
+        //260226
+        [HttpPost]
+        public async Task<IActionResult> DeleteAjax(int id)
+        {
+            
+                await _taskService.DeleteTaskAsync(id);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "La tarea se eliminó correctamente."
+                });
+            
+            
+        }
+>>>>>>> tras-status-quo
     }
 }

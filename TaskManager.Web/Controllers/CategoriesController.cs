@@ -1,25 +1,34 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 using TaskManager.Web.Services;
 =======
 using TaskManager.Web.Interfaces.Category;
 using TaskManager.Web.Models;
 >>>>>>> Stashed changes
+=======
+using TaskManager.Web.Services.Business; // Importante añadir esta referencia
+>>>>>>> tras-status-quo
 
 namespace TaskManager.Web.Controllers
 {
     public class CategoriesController : Controller
     {
+<<<<<<< HEAD
 <<<<<<< Updated upstream
         private readonly ICategoryApiClient _categoryApiClient;
 =======
         // Inyección de Dependencia ÚNICA
         private readonly ICategoryService _categoryService;
 >>>>>>> Stashed changes
+=======
+        // Ahora inyectamos el SERVICIO en lugar del CLIENTE
+        private readonly ICategoryService _categoryService;
+>>>>>>> tras-status-quo
 
-        public CategoriesController(ICategoryApiClient categoryApiClient)
+        public CategoriesController(ICategoryService categoryService)
         {
-            _categoryApiClient = categoryApiClient;
+            _categoryService = categoryService;
         }
 
         // GET: Categories
@@ -40,6 +49,7 @@ namespace TaskManager.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(CategoryViewModel category)
         {
+<<<<<<< HEAD
 <<<<<<< Updated upstream
             if (file == null || file.Length == 0)
             {
@@ -47,13 +57,22 @@ namespace TaskManager.Web.Controllers
                 return View();
             }
 
+=======
+>>>>>>> tras-status-quo
             try
             {
-                var resultMessage = await _categoryApiClient.ImportCategoriesFromExcelAsync(file);
+                // El controlador solo delega la tarea al servicio
+                var resultMessage = await _categoryService.ImportFromExcelAsync(file);
                 TempData["Success"] = resultMessage;
+            }
+            catch (ArgumentException ex)
+            {
+                // Errores de validación conocidos
+                TempData["Error"] = ex.Message;
             }
             catch (Exception ex)
             {
+                // Errores inesperados de la API
                 TempData["Error"] = "Ocurrió un error al importar el archivo: " + ex.Message;
             }
 
@@ -80,6 +99,7 @@ namespace TaskManager.Web.Controllers
 
             return View(category);
         }
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
 
@@ -120,5 +140,24 @@ namespace TaskManager.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 >>>>>>> Stashed changes
+=======
+
+        [HttpGet]
+        public async Task<JsonResult> GetCategoriesJson()
+        {
+            // Supongamos que tu cliente de categorías tiene un método para listar
+            var categories = await _categoryService.GetCategoriesAsync();
+            return Json(categories);
+        }
+
+        //250226
+        // GET: /Categories/Options
+        [HttpGet]
+        public async Task<IActionResult> Options()
+        {
+            var categories = await _categoryService.GetSimpleListAsync();
+            return Json(categories); // Devuelve JSON al JS del front
+        }
+>>>>>>> tras-status-quo
     }
 }
